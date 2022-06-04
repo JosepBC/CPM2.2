@@ -5,6 +5,15 @@
 
 #define CERT 1
 #define FALS 0
+#define DEPTH 6
+
+typedef struct {
+    int taula[9][9];
+    int i;
+    int j;
+} data;
+
+data * taules;
 
 // Ha de ser inicialment correcta !!
 int taula[9][9] = \
@@ -21,16 +30,16 @@ int taula[9][9] = \
          0,0,0, 0,0,0,  0,0,0};
 
 
-void copyTable(int original_table[9][9], int copy_table[9][9]) {
+void copy_table(int new_table[9][9], int original_table[9][9]) {
     for(int i=0; i<9; i++) {
         for(int j=0; j<9; j++) {
-            copy_table[i][j] = original_table[i][j];
+            new_table[i][j] = original_table[i][j];
         }
     }
 }
 
 
-int puc_posar(int x, int y, int z) {
+int puc_posar(int x, int y, int z, int talua[][9]) {
     int i, j, pi, pj;
 
     for (i = 0; i < 9; i++) if (taula[x][i] == z) return FALS; // Files
@@ -48,20 +57,23 @@ int puc_posar(int x, int y, int z) {
 }
 
 ////////////////////////////////////////////////////////////////////
-int recorrer(int i, int j) {
+int recorrer(int i, int j, int taula[][9]) {
     int k;
     long int s = 0;
 
     if (taula[i][j]) { //Valor fixe no s'ha d'iterar
-        if (j < 8) return(recorrer(i, j + 1));
-        else if (i < 8) return(recorrer(i + 1, 0));
+
+        if (j < 8) return(recorrer(i, j + 1, taula));
+        else if (i < 8) return(recorrer(i + 1, 0, taula));
         else return 1; // Final de la taula
+
     } else { // hi ha un 0 hem de provar 
+
         for (k = 1; k < 10; k++) {
-            if (puc_posar(i, j, k)) {
+            if (puc_posar(i, j, k, taula)) {
                 taula[i][j]= k; 
-                if (j < 8) s += recorrer(i, j + 1);
-                else if (i < 8) s += recorrer(i + 1, 0);
+                if (j < 8) s += recorrer(i, j + 1, taula);
+                else if (i < 8) s += recorrer(i + 1, 0, taula);
                 else s++;
                 taula[i][j]= 0;
             }
@@ -69,6 +81,40 @@ int recorrer(int i, int j) {
     }
     
     return s;
+}
+
+int init_taules(int i, int j, int level) {
+    int k;
+
+    if (level > DEPTH) {
+        //New element to list
+        copy_table(taules[pointer].taula, taula);
+        taules[pointer].i = i;
+        taules[pointer].j = j;
+        pointer++;
+    }
+    else if(taula[i][j]) { //Fixed value no need to iterate
+        if (j < 8 ) return init_taules(i, j + 1, level);
+        else if (i < 8) return init_taules(i +_1, 0, level);
+    }
+    else { //Elem that need to try
+        for (k = 1; k < 10; k++) {
+            if (puc_posar(i, j, k, taula)) {
+                taula[i][j] = k;
+                if (j < 8) init_taules(i, j + 1, level + 1);
+                else if (i < 8) init_taules(i + 1, 0, level + 1);
+                else {
+                    copy_table(taules[pointer].taula, taula);
+                    taules[pointer].i = i;
+                    taules[pointer].j = j;
+                    pointer++;
+                }
+                taula[i][j] = 0;
+            }
+        }
+
+    }
+
 }
 
 ////////////////////////////////////////////////////////////////////
