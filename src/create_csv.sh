@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "file_name;time;procs_per_node;nodes"
-for file in out/*
+for file in out/dos6/*
 do
     file_name=$(basename $file | cut -f 1 -d .)
     time=$(grep real $file | cut -f 2 -d ' ')
