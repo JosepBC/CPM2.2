@@ -1,5 +1,5 @@
 CC = mpicc
-SRC = src/paralel.c
+SRC = src/P2.2_CPM_JosepBelloOriolLopez.c
 BIN = par
 CFLAGS = -lm -g
 BUILD_FOLDER = build
