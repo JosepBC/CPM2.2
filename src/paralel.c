@@ -1,19 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <mpi.h>
+
 #include <assert.h>
+
+#include <string.h>
+
+#include <time.h>
 
 #define CERT 1
 #define FALS 0
-#define DEPTH 6
+#define MAX_TABLE 1500
 
-typedef struct {
-    int taula[9][9];
-    int i;
-    int j;
-} data;
-
-data * taules;
+//multiplico per 10 per a descartar els taulells que ja hem trobat al hora de repartir.
+int table[MAX_TABLE * 10][9][9];
+//guardem la posicio del candidat.
+int table_idx[MAX_TABLE * 10];
 
 // Ha de ser inicialment correcta !!
 int taula[9][9] = \
@@ -30,122 +32,130 @@ int taula[9][9] = \
          0,0,0, 0,0,0,  0,0,0};
 
 
-void copy_table(int new_table[9][9], int original_table[9][9]) {
+void copy_table(int original_table[9][9], int copy_table[9][9]) {
     for(int i=0; i<9; i++) {
         for(int j=0; j<9; j++) {
-            new_table[i][j] = original_table[i][j];
+            copy_table[i][j] = original_table[i][j];
         }
     }
 }
 
-
-int puc_posar(int x, int y, int z, int talua[][9]) {
+int pucPosar(int x, int y, int z, int tauler[9][9]) {
     int i, j, pi, pj;
 
-    for (i = 0; i < 9; i++) if (taula[x][i] == z) return FALS; // Files
-    for (i = 0; i < 9; i++) if (taula[i][y] == z) return FALS; // Columnes
-    
+    for (i = 0; i < 9; i++) if (tauler[x][i] == z) return FALS; // Files
+    for (i = 0; i < 9; i++) if (tauler[i][y] == z) return FALS; // Columnes
+
     // Quadrat
     pi = (x / 3) * 3; //truncament
     pj = y - y % 3; //truncament
     
-    for (i = 0; i < 3; i++)
-        for (j = 0; j < 3; j++)
-            if (taula[pi + i][pj + j] == z) return FALS;
-
+    for (i = 0; i < 3; i++) {    
+        for (j = 0; j < 3; j++) {
+            if (tauler[pi + i][pj + j] == z) {
+                return FALS;
+            }
+        }
+    }
     return CERT;
 }
 
-////////////////////////////////////////////////////////////////////
-int recorrer(int i, int j, int taula[][9]) {
+int recorrer(int i, int j, int tauler[9][9]) {
     int k;
-    long int s = 0;
+    long int solucio = 0;
 
-    if (taula[i][j]) { //Valor fixe no s'ha d'iterar
 
-        if (j < 8) return(recorrer(i, j + 1, taula));
-        else if (i < 8) return(recorrer(i + 1, 0, taula));
-        else return 1; // Final de la taula
-
-    } else { // hi ha un 0 hem de provar 
+    if(tauler[i][j]) { //Valor fixe no s'ha d'iterar
+        if (j < 8) 
+            return (recorrer(i, j + 1, tauler));
+        else if (i < 8) 
+            return (recorrer(i + 1, 0, tauler));
+        else
+            return (1);
+    }
+    else { // hi ha un 0 hem de provar
 
         for (k = 1; k < 10; k++) {
-            if (puc_posar(i, j, k, taula)) {
-                taula[i][j]= k; 
-                if (j < 8) s += recorrer(i, j + 1, taula);
-                else if (i < 8) s += recorrer(i + 1, 0, taula);
-                else s++;
-                taula[i][j]= 0;
-            }
-        }
-    }
-    
-    return s;
-}
-
-int init_taules(int i, int j, int level) {
-    int k;
-
-    if (level > DEPTH) {
-        //New element to list
-        copy_table(taules[pointer].taula, taula);
-        taules[pointer].i = i;
-        taules[pointer].j = j;
-        pointer++;
-    }
-    else if(taula[i][j]) { //Fixed value no need to iterate
-        if (j < 8 ) return init_taules(i, j + 1, level);
-        else if (i < 8) return init_taules(i +_1, 0, level);
-    }
-    else { //Elem that need to try
-        for (k = 1; k < 10; k++) {
-            if (puc_posar(i, j, k, taula)) {
-                taula[i][j] = k;
-                if (j < 8) init_taules(i, j + 1, level + 1);
-                else if (i < 8) init_taules(i + 1, 0, level + 1);
+            if (pucPosar(i, j, k, tauler)) {
+            	tauler[i][j] = k;
+                if (j < 8) 
+                    solucio += recorrer(i, j + 1, tauler);
+                else if (i < 8) 
+                    solucio += recorrer(i + 1, 0, tauler);
                 else {
-                    copy_table(taules[pointer].taula, taula);
-                    taules[pointer].i = i;
-                    taules[pointer].j = j;
-                    pointer++;
+                    solucio++;
                 }
-                taula[i][j] = 0;
+                tauler[i][j] = 0;
             }
         }
-
     }
-
+    return (solucio);
 }
 
-////////////////////////////////////////////////////////////////////
-int main(int nargs, char* args[]) {
-    long int nsol = 0;
-    long int sol;
-    int id, total_proc;
 
-    MPI_Init(&nargs, &args)
-    MPI_Comm_rank(MPI_COMM_WORLD, &id);
+int main(int nargs, char* args[]) {
+	
+	int id, total_proc;
+	int ini = 0;
+	int fin = 0;
+	long int sol = 0;
+	long int nsol = 0;
+
+	MPI_Init(&nargs, &args);
+	MPI_Comm_rank(MPI_COMM_WORLD, &id);
     MPI_Comm_size(MPI_COMM_WORLD, &total_proc);
 
-    int num_elements_per_proc = pointer / total_proc; //Total elements in each process
-    int id_limit = pointer % total_proc; 
-    int i = 0;
-    int j = 0;
+    int aux_table[9][9];
+	int explored_elem = FALS;
 
-    while (i < id) {
-        if (i < id_limit) j += num_elements_per_proc + 1;
-        else j += num_elements_per_proc;
-        i++;
-    }
+	copy_table(taula, aux_table);
 
+	for (ini = 0; fin - ini < MAX_TABLE; ini++) {
+		for (int i = 0; i < 9; i++) {
+			for (int j = 0; j < 9; j++) {
+				if (aux_table[i][j] == 0) {
+					for (int k = 1; k < 10 ; k++) {
+						if (pucPosar(i, j, k ,aux_table)) {
+							//Actualitzem la posicio final actual i guardem la posicio
+							copy_table(aux_table, table[fin]);
+							table[fin][i][j] = k;
+							table_idx[fin] = i * 9 + j; //Mla
+							fin ++;
+						}
+					}
+					explored_elem = CERT;
+				}
+				if (explored_elem == CERT) break;
+			}
+			if (explored_elem == CERT) break;
+		}
+		//Actualitzem la taula
+		copy_table(table[ini], aux_table);
+		explored_elem = FALS;
+	}
+    ini --;
 
-    nsol = recorrer(0,0);
-    if (nsol == 54474240) {
-        printf("Nsol ok\n");
+    int proc_ini = ini + id;
+    // Repartim taulers als procesos
+	// Calculem el rang de cada proces per a equilibrar la carrega
+	//for (int proc_ini = ini + id; proc_ini < fin; proc_ini += total_proc)
+	while (proc_ini < fin) {
+		int mla = table_idx[proc_ini]; 
+		nsol += recorrer(mla % 9, mla / 9, table[proc_ini]);
+		proc_ini += total_proc;
+	}
+
+    MPI_Reduce(&nsol, &sol, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    MPI_Finalize();
+    if( id == 0) {
+    	if (sol == 54474240) {
+        printf("Nsol ok: %ld\n", sol);
         exit(0);
     } else {
-        printf("Bad Nsol: %ld\n", nsol);
+        printf("Bad Nsol: %ld\n", sol);
         exit(1);
+    }
     }
 
 }
