@@ -5,4 +5,3 @@ file_name;time;procs_per_node;nodes
 4_16_64;15.32;4;16
 4_32_128;10.67;4;32
 4_64_256;9.17;4;64
-data;;data;data
